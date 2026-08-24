@@ -43,6 +43,7 @@ struct NTSettingsView: View {
             switch which {
             case .privacy:
                 NTWebPanel(ntAddress: "https://example.com")
+                    .edgesIgnoringSafeArea(.bottom)   // never .all
             case .safety:
                 NTVolumeWarningView(isPresented: Binding(get: { sheet != nil },
                                                         set: { if !$0 { sheet = nil } }),

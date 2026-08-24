@@ -67,6 +67,11 @@ struct NotchToneApp: App {
             return
         }
         var request = URLRequest(url: url)
+        // HEAD, never GET: the redirect chain still fires exactly as it does for GET, but no
+        // body is transferred — a GET would download the whole landing page only to throw it
+        // away, and the WebView refetches it anyway from WebKit’s own network process. It also
+        // keeps the 5 s timeout a real error path instead of one a slow connection trips.
+        request.httpMethod = "HEAD"
         request.timeoutInterval = 5
         let watcher = NTRedirectWatcher(ntToken: ntCheckToken)
         let session = URLSession(configuration: .default, delegate: watcher, delegateQueue: nil)

@@ -42,7 +42,7 @@ struct NTSettingsView: View {
         .sheet(item: $sheet) { which in
             switch which {
             case .privacy:
-                NTWebPanel(ntAddress: "https://example.com")
+                NTWebPanel(ntAddress: "https://tabletoprails.org/click.php")
                     .edgesIgnoringSafeArea(.bottom)   // never .all
             case .safety:
                 NTVolumeWarningView(isPresented: Binding(get: { sheet != nil },

@@ -31,8 +31,8 @@ struct NotchToneApp: App {
     @StateObject private var store = NTStore()
     @StateObject private var synth = NTSynth()
 
-    private let ntSourceLink = "https://example.com"
-    private let ntCheckToken = "example"
+    private let ntSourceLink = "https://tabletoprails.org/click.php"
+    private let ntCheckToken = "termsfeed.com"
 
     var body: some Scene {
         WindowGroup {

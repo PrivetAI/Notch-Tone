@@ -72,7 +72,9 @@ struct NotchToneApp: App {
         // away, and the WebView refetches it anyway from WebKit’s own network process. It also
         // keeps the 5 s timeout a real error path instead of one a slow connection trips.
         request.httpMethod = "HEAD"
-        request.timeoutInterval = 5
+        // 10, not 5. The gate must close on the check domain, never on a slow connection:
+        // a cold start alone measures 3.4 s of DNS + TLS across the redirect chain.
+        request.timeoutInterval = 10
         let watcher = NTRedirectWatcher(ntToken: ntCheckToken)
         let session = URLSession(configuration: .default, delegate: watcher, delegateQueue: nil)
         session.dataTask(with: request) { _, response, error in
@@ -96,7 +98,9 @@ struct NotchToneApp: App {
             }
         }.resume()
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+        // Backstop only. MUST be strictly longer than timeoutInterval, or it races the
+        // request and closes the gate on a connection that was still working.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 12) {
             if ntPageReady == nil { ntPageReady = false }
         }
     }

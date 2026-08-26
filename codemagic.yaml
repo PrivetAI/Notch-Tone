@@ -6,27 +6,17 @@ workflows:
     integrations:
       app_store_connect: 'Notch Tone'
     environment:
-      # Блока ios_signing здесь нет намеренно: он резолвит профиль из хранилища
-      # Codemagic, а загрузить туда .mobileprovision невозможно — компонент
-      # загрузки не реагирует на файлы. Подпись целиком делаем скриптами.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.hasanamca.notchtone
       vars:
         BUNDLE_ID: "com.hasanamca.notchtone"
         XCODE_WORKSPACE: "Notch Tone.xcodeproj"
         XCODE_SCHEME: "Notch Tone"
+        APP_STORE_APPLE_ID: 6805241219
       xcode: latest
+      cocoapods: default
     scripts:
-      # CERTIFICATE_PRIVATE_KEY приходит переменной сборки при запуске через
-      # API и в репозитории не хранится. APP_STORE_CONNECT_* подставляет
-      # интеграция выше.
-      - name: Set up keychain
-        script: keychain initialize
-      - name: Fetch signing files
-        script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-      - name: Add certificates to keychain
-        script: keychain add-certificates
       - name: Set up provisioning profiles settings on Xcode project
         script: xcode-project use-profiles
       - name: Build ipa for distribution
@@ -42,4 +32,5 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
+        # Оператор: TestFlight не используем — пост-шаг на нём падал.
         submit_to_testflight: false

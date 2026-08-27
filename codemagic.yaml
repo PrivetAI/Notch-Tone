@@ -21,10 +21,32 @@ workflows:
         script: keychain initialize
       - name: Fetch signing files
         script: |
-          # Ключ для сертификата создаём прямо в сборке, чтобы не хранить его
-          # ни в репозитории, ни в переменных Codemagic. Обратная сторона:
-          # каждая сборка выпускает новый distribution-сертификат, а у Apple
-          # их лимит два на аккаунт — лишние отзывать вручную в портале.
+          # Ключ для сертификата создаём прямо в сборке: секрет не лежит ни в
+          # репозитории, ни в переменных Codemagic. Раньше он приходил
+          # переменной CERTIFICATE_PRIVATE_KEY при запуске через API, и запуск
+          # из интерфейса падал на «Cannot save Signing Certificates without
+          # certificate private key».
+          # Приватный ключ рождается заново на каждой сборке, поэтому ранее
+          # выпущенные distribution-сертификаты бесполезны — их ключи
+          # недоступны. Apple держит лимит два на аккаунт, и без уборки каждая
+          # вторая сборка падает с 409 «You already have a current Distribution
+          # certificate». Отзываем старые перед выпуском нового; на уже
+          # загруженные в App Store Connect билды это не влияет.
+          python3 - <<'CLEANUP'
+          import json, subprocess
+          ids = set()
+          for cert_type in ("DISTRIBUTION", "IOS_DISTRIBUTION"):
+              out = subprocess.run(
+                  ["app-store-connect", "certificates", "list", "--type", cert_type, "--json"],
+                  capture_output=True, text=True)
+              try:
+                  ids.update(c["id"] for c in json.loads(out.stdout or "[]"))
+              except Exception:
+                  pass
+          for cert_id in sorted(ids):
+              print("revoking certificate", cert_id)
+              subprocess.run(["app-store-connect", "certificates", "delete", cert_id, "--ignore-not-found"])
+          CLEANUP
           openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out /tmp/signing_key.pem
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \

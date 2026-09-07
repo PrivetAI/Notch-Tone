@@ -6,10 +6,19 @@ workflows:
     integrations:
       app_store_connect: 'Notch Tone'
     environment:
-      # Блока ios_signing здесь намеренно нет: он резолвит профиль из хранилища
-      # Codemagic и падает с «No matching profiles found», а положить туда
-      # .mobileprovision через интерфейс не выходит. Подпись делаем скриптами —
-      # эта схема прошла на пяти приложениях прошлой партии.
+      # Подпись берётся из хранилища Codemagic (Settings → Code signing
+      # identities): distribution-сертификат аккаунта Hasan AMCA лежит там
+      # вместе с приватным ключом, provisioning profile «Notch Tone» выпущен
+      # под этот сертификат и подтянут из портала. Один сертификат обслуживает
+      # все сборки.
+      #
+      # Прежняя схема генерировала ключ заново на каждой сборке
+      # (openssl genrsa) — сертификат оставался, а ключа к нему больше не
+      # было, поэтому каждый запуск просил у Apple новый и упирался в лимит:
+      # «You already have a current Distribution certificate», 409.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.hasanamca.notchtone
       vars:
         BUNDLE_ID: "com.hasanamca.notchtone"
         XCODE_WORKSPACE: "Notch Tone.xcodeproj"
@@ -17,21 +26,6 @@ workflows:
         APP_STORE_APPLE_ID: 6805241219
       xcode: latest
     scripts:
-      - name: Set up keychain
-        script: keychain initialize
-      - name: Fetch signing files
-        script: |
-          # Ключ для сертификата создаём прямо в сборке, чтобы не хранить его
-          # ни в репозитории, ни в переменных Codemagic. Обратная сторона:
-          # каждая сборка выпускает новый distribution-сертификат, а у Apple
-          # их лимит два на аккаунт — лишние отзывать вручную в портале.
-          openssl genrsa 2048 | openssl pkcs8 -topk8 -nocrypt -out /tmp/signing_key.pem
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --certificate-key=@file:/tmp/signing_key.pem \
-            --create
-      - name: Add certificates to keychain
-        script: keychain add-certificates
       - name: Set up provisioning profiles settings on Xcode project
         script: xcode-project use-profiles
       - name: Build ipa for distribution
@@ -42,8 +36,6 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
     publishing:
       app_store_connect:
         auth: integration
